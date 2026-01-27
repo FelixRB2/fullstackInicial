@@ -1,0 +1,65 @@
+version: "3.9"
+
+services:
+  db:
+    image: mysql:8
+    container_name: fullstack-mysql
+    environment:
+      MYSQL_DATABASE: appdb
+      MYSQL_USER: usuario
+      MYSQL_PASSWORD: usuario
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3307:3306"
+    networks:
+      - fullstack-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fullstack-backend
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: db
+      DB_USER: usuario
+      DB_PASSWORD: usuario
+      DB_NAME: appdb
+      DB_PORT: 3306
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - fullstack-network
+
+  frontend:
+    build:
+      context: ./frontend/todo-app
+      dockerfile: Dockerfile
+    container_name: fullstack-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - fullstack-network
+
+volumes:
+  mysql_data:
+
+networks:
+  fullstack-network:
+    driver: bridge
